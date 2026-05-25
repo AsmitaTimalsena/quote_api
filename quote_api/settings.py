@@ -73,12 +73,25 @@ WSGI_APPLICATION = 'quote_api.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': 'quote_api',
+#        'USER': 'postgres',
+#        'PASSWORD': '1234',
+#        'HOST': 'localhost',
+#        'PORT': '5432',
+#    }
+# }
+
+import dj_database_url
+import os
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+   'default': dj_database_url.config(
+       default='postgresql://quoteuser:qJVppNTzvUuqnNspvr10NCe6O8cJJzoh@dpg-d8a4uva8qa3s73ehqmlg-a.oregon-postgres.render.com/quotedb_izqk',
+       conn_max_age=600
+   )
 }
 
 
