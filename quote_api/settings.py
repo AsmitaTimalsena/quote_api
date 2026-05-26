@@ -54,6 +54,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'quote_api.urls'
+CORS_ALLOW_ALL_ORIGINS = True
 
 TEMPLATES = [
     {
@@ -69,7 +70,7 @@ TEMPLATES = [
         },
     },
 ]
-CORS_ALLOW_ALL_ORIGINS = True
+
 WSGI_APPLICATION = 'quote_api.wsgi.application'
 
 
