@@ -7,7 +7,7 @@ function App() {
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState("Motivation");
 
-  const API = "https://quote-api-gilt.vercel.app/";
+  const API = "https://quote-api-gilt.vercel.app";
 
   // GET random quote
   const getQuote = async () => {
@@ -16,18 +16,25 @@ function App() {
   };
 
   // POST new quote
-  const addQuote = async () => {
-    await axios.post(`${API}/quotes/`, {
+const addQuote = async () => {
+  await axios.post(
+    `${API}/quotes/`,
+    {
       text,
       author,
       category,
-    });
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
-    setText("");
-    setAuthor("");
-    alert("Quote added!");
-  };
-
+  setText("");
+  setAuthor("");
+  alert("Quote added!");
+};
   useEffect(() => {
     getQuote();
   }, []);
