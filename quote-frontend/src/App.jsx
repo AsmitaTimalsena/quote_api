@@ -7,7 +7,7 @@ function App() {
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState("Motivation");
 
-  const API = "https://quote-api-gilt.vercel.app";
+  const API = "https://quote-api-iewd.onrender.com";
 
   // GET random quote
   const getQuote = async () => {
