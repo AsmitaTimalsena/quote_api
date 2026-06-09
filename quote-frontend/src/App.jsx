@@ -7,7 +7,9 @@ function App() {
   const [author, setAuthor] = useState("");
   const [category, setCategory] = useState("Motivation");
 
-  const API = "https://quote-api-iewd.onrender.com";
+  const API = import.meta.env.VITE_API_URL;
+
+  // const API = "https://quote-api-iewd.onrender.com";
 
   // GET random quote
   const getQuote = async () => {
