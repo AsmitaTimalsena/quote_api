@@ -1,6 +1,6 @@
-import os
 import random
-import google.generativeai as genai
+import json
+from google import genai
 
 from django.conf import settings
 from rest_framework.decorators import api_view
@@ -8,18 +8,17 @@ from rest_framework.response import Response
 from .models import Quote
 from .serializers import QuoteSerializer
 
-genai.configure(api_key=settings.GEMINI_KEY)
+client = genai.Client(api_key=settings.GEMINI_KEY)
 
-# Create your views here.
-#post new quote
+
 @api_view(['POST'])
 def add_quote(request):
     serializer = QuoteSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
-
         return Response(serializer.data)
     return Response(serializer.errors)
+
 
 @api_view(['GET'])
 def all_quotes(request):
@@ -27,105 +26,82 @@ def all_quotes(request):
     serializer = QuoteSerializer(quotes, many=True)
     return Response(serializer.data)
 
+
 @api_view(['GET', 'POST'])
 def mood_quote(request):
 
     message = request.data.get("message")
-    if request.method == "GET":
-        return Response({
-            "message": "Send a POST request with a mood."
-        })
 
     if not message:
-        return Response(
-            {"error": "Message is required"},
-            status=400
+        return Response({"error": "Message is required"}, status=400)
+
+    detected_mood = None
+    ai_quote_text = None
+    raw = ""
+
+    try:
+        prompt = f"""
+You are a mood analyzer and quote generator.
+
+User message:
+"{message}"
+
+TASK:
+1. Detect mood from this list:
+Motivation, Success, Life, Failure, Happiness, Sadness,
+Stress, Confidence, Hope, Friendship, Love, Education,
+Career, Leadership, Discipline, Perseverance, SelfGrowth
+
+2. Generate ONE motivational quote for that mood.
+
+IMPORTANT: Return ONLY a raw JSON object. No markdown. No code fences. No backticks. No explanation. Just the JSON.
+
+{{"mood": "...", "quote": "..."}}
+"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
         )
 
-    model = genai.GenerativeModel("gemini-2.5-flash-lite")
+        raw = response.text.strip()
+        print(f"Gemini raw response: {repr(raw)}")
 
-    mood_prompt = f"""
-    Analyze this message:
+        # Strip markdown code fences if present
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
 
-    "{message}"
+        data = json.loads(raw)
+        detected_mood = data["mood"]
+        ai_quote_text = data["quote"]
 
-    Choose ONLY one category from:
+        print(f"Detected mood: {detected_mood} | Quote: {ai_quote_text}")
 
-    Motivation
-    Success
-    Life
-    Failure
-    Happiness
-    Sadness
-    Stress
-    Confidence
-    Hope
-    Friendship
-    Love
-    Education
-    Career
-    Leadership
-    Discipline
-    Perseverance
-    SelfGrowth
+    except json.JSONDecodeError as e:
+        print(f"Gemini JSON parse error: {e} | raw was: {repr(raw)}")
+    except Exception as e:
+        print(f"Gemini error: {type(e).__name__}: {e}")
 
-    Return ONLY the category.
-    """
-
-    mood_response = model.generate_content(mood_prompt)
-
-    detected_mood = mood_response.text.strip()
-
-    matching_quotes = Quote.objects.filter(
-        category__iexact=detected_mood
-    )
-    print("Detected mood:", detected_mood)
-    print("Matching quotes:", matching_quotes.count())
-
+    # Only filter community quotes if Gemini succeeded
     community_quote = None
-
-    if matching_quotes.exists():
-
-        quote = random.choice(matching_quotes)
-
-        community_quote = {
-            "text": quote.text,
-            "author": quote.author,
-            "category": quote.category
-        }
-
-    ai_prompt = f"""
-    User says:
-
-    "{message}"
-
-    Mood category: {detected_mood}
-
-    Generate ONE short motivational quote.
-
-    Return only the quote text.
-    """
-
-    ai_response = model.generate_content(ai_prompt)
+    if detected_mood:
+        matching_quotes = Quote.objects.filter(category__iexact=detected_mood)
+        if matching_quotes.exists():
+            quote = random.choice(list(matching_quotes))
+            community_quote = {
+                "text": quote.text,
+                "author": quote.author,
+                "category": quote.category,
+            }
 
     return Response({
         "mood": detected_mood,
-
         "ai_quote": {
-            "text": ai_response.text.strip(),
-            "author": "Gemini AI"
+            "text": ai_quote_text or "Could not generate a quote. Please try again.",
+            "author": "Gemini AI",
         },
-
-        "community_quote": community_quote
+        "community_quote": community_quote,
     })
-
-# @api_view(['GET'])
-# def community_quote(request):
-#     quotes = Quote.objects.all()
-
-#     if quotes.exists():
-#         quote = random.choice(quotes)
-#         serializer = QuoteSerializer(quote)
-#         return Response(serializer.data)
-
-#     return Response({"message": "No quotes found"})

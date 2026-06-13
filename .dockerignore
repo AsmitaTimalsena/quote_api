@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+db.sqlite3
+
+.env
+.env.*
+quote-frontend/.env*
+.env.development
+.env.production
+
+.idea/
+.git/
+
+node_modules/
+quote-frontend/node_modules/
