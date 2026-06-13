@@ -11,19 +11,30 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from dotenv import load_dotenv
+import dj_database_url
+import os
+
+
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
 
+ENV = os.getenv('ENV', 'development')
+if ENV == 'production':
+    load_dotenv('.env.production')
+else:
+    load_dotenv('.env.development')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dg!-^chj@pjarxegx_a)2q-=zkcul1p-x^sz8830u#+=58qf(j'
-
+SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
@@ -87,12 +98,11 @@ WSGI_APPLICATION = 'quote_api.wsgi.application'
 #    }
 # }
 
-import dj_database_url
-import os
+
 
 DATABASES = {
    'default': dj_database_url.config(
-       default='postgresql://quoteuser:qJVppNTzvUuqnNspvr10NCe6O8cJJzoh@dpg-d8a4uva8qa3s73ehqmlg-a.oregon-postgres.render.com/quotedb_izqk',
+       default=os.getenv("DATABASE_URL"),
        conn_max_age=600
    )
 }
