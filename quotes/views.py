@@ -1,5 +1,6 @@
 import random
 import json
+import traceback
 from google import genai
 
 from django.conf import settings
@@ -38,10 +39,11 @@ def mood_quote(request):
     raw = ""
 
     try:
-        # Initialize client inside the view so a missing key doesn't crash the app on startup
-        client = genai.Client(api_key=settings.GEMINI_KEY)
+        try:
+            # Initialize client inside the view so a missing key doesn't crash the app on startup
+            client = genai.Client(api_key=settings.GEMINI_KEY)
 
-        prompt = f"""
+            prompt = f"""
 You are a mood analyzer and quote generator.
 
 User message:
@@ -60,49 +62,55 @@ IMPORTANT: Return ONLY a raw JSON object. No markdown. No code fences. No backti
 {{"mood": "...", "quote": "..."}}
 """
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
 
-        raw = response.text.strip()
-        print(f"Gemini raw response: {repr(raw)}")
+            raw = response.text.strip()
+            print(f"Gemini raw response: {repr(raw)}", flush=True)
 
-        # Strip markdown code fences if present
-        if "```" in raw:
-            raw = raw.split("```")[1]
-            if raw.lower().startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+            # Strip markdown code fences if present
+            if "```" in raw:
+                raw = raw.split("```")[1]
+                if raw.lower().startswith("json"):
+                    raw = raw[4:]
+                raw = raw.strip()
 
-        data = json.loads(raw)
-        detected_mood = data["mood"]
-        ai_quote_text = data["quote"]
+            data = json.loads(raw)
+            detected_mood = data["mood"]
+            ai_quote_text = data["quote"]
 
-        print(f"Detected mood: {detected_mood} | Quote: {ai_quote_text}")
+            print(f"Detected mood: {detected_mood} | Quote: {ai_quote_text}", flush=True)
 
-    except json.JSONDecodeError as e:
-        print(f"Gemini JSON parse error: {e} | raw was: {repr(raw)}")
-    except Exception as e:
-        print(f"Gemini error: {type(e).__name__}: {e}")
+        except json.JSONDecodeError as e:
+            print(f"Gemini JSON parse error: {e} | raw was: {repr(raw)}", flush=True)
+        except Exception as e:
+            print(f"Gemini error: {type(e).__name__}: {e}", flush=True)
+            traceback.print_exc()
 
-    # Only filter community quotes if Gemini succeeded
-    community_quote = None
-    if detected_mood:
-        matching_quotes = Quote.objects.filter(category__iexact=detected_mood)
-        if matching_quotes.exists():
-            quote = random.choice(list(matching_quotes))
-            community_quote = {
-                "text": quote.text,
-                "author": quote.author,
-                "category": quote.category,
-            }
+        # Only filter community quotes if Gemini succeeded
+        community_quote = None
+        if detected_mood:
+            matching_quotes = Quote.objects.filter(category__iexact=detected_mood)
+            if matching_quotes.exists():
+                quote = random.choice(list(matching_quotes))
+                community_quote = {
+                    "text": quote.text,
+                    "author": quote.author,
+                    "category": quote.category,
+                }
 
-    return Response({
-        "mood": detected_mood,
-        "ai_quote": {
-            "text": ai_quote_text or "Could not generate a quote. Please try again.",
-            "author": "Gemini AI",
-        },
-        "community_quote": community_quote,
-    })
+        return Response({
+            "mood": detected_mood,
+            "ai_quote": {
+                "text": ai_quote_text or "Could not generate a quote. Please try again.",
+                "author": "Gemini AI",
+            },
+            "community_quote": community_quote,
+        })
+
+    except Exception as outer_e:
+        print(f"OUTER VIEW ERROR: {type(outer_e).__name__}: {outer_e}", flush=True)
+        traceback.print_exc()
+        return Response({"error": "Internal server error", "detail": str(outer_e)}, status=500)
