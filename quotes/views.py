@@ -8,8 +8,6 @@ from rest_framework.response import Response
 from .models import Quote
 from .serializers import QuoteSerializer
 
-client = genai.Client(api_key=settings.GEMINI_KEY)
-
 
 @api_view(['POST'])
 def add_quote(request):
@@ -40,6 +38,9 @@ def mood_quote(request):
     raw = ""
 
     try:
+        # Initialize client inside the view so a missing key doesn't crash the app on startup
+        client = genai.Client(api_key=settings.GEMINI_KEY)
+
         prompt = f"""
 You are a mood analyzer and quote generator.
 
